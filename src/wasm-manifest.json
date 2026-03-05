@@ -1,0 +1,134 @@
+{
+  "runtime": {
+    "url": "https://unpkg.com/web-tree-sitter@0.26.6/web-tree-sitter.wasm",
+    "sha256": "edb58ff2bb6087799ecd49437a27d69746656fa78083e842d3cbfd33f3b1e900"
+  },
+  "grammars": [
+    {
+      "id": "typescript",
+      "url": "https://github.com/tree-sitter/tree-sitter-typescript/releases/download/v0.23.2/tree-sitter-typescript.wasm",
+      "sha256": "778025db5a8be0e70f8ccc3671e486dfeddd048c25d9e8a70c26de2e1bf6f97d",
+      "exts": [
+        ".ts",
+        ".mts",
+        ".cts"
+      ]
+    },
+    {
+      "id": "tsx",
+      "url": "https://github.com/tree-sitter/tree-sitter-typescript/releases/download/v0.23.2/tree-sitter-tsx.wasm",
+      "sha256": "79e5da75ea62855a0cd67177685f0164eac87d5f630b3cbe1e0a099751ad30f8",
+      "exts": [
+        ".tsx"
+      ]
+    },
+    {
+      "id": "javascript",
+      "url": "https://github.com/tree-sitter/tree-sitter-javascript/releases/download/v0.25.0/tree-sitter-javascript.wasm",
+      "sha256": "5fb488d0cabb4775a594bab85682de5ad6ce83c0d6ac997a9f82dd084d571240",
+      "exts": [
+        ".js",
+        ".mjs",
+        ".cjs",
+        ".jsx"
+      ]
+    },
+    {
+      "id": "python",
+      "url": "https://github.com/tree-sitter/tree-sitter-python/releases/download/v0.25.0/tree-sitter-python.wasm",
+      "sha256": "16108b50df4ee9a30168794252ab55e7c93bfc5765d7fa0aa3e335752c515f47",
+      "exts": [
+        ".py"
+      ]
+    },
+    {
+      "id": "go",
+      "url": "https://github.com/tree-sitter/tree-sitter-go/releases/download/v0.25.0/tree-sitter-go.wasm",
+      "sha256": "9504573f352b20be7f2f1911754d710622aedc15afff16d5ed8fb5645681aee7",
+      "exts": [
+        ".go"
+      ]
+    },
+    {
+      "id": "rust",
+      "url": "https://github.com/tree-sitter/tree-sitter-rust/releases/download/v0.24.0/tree-sitter-rust.wasm",
+      "sha256": "44b8d1a2e307ee8933d7c0bcb6b0f30d56bc999999fd1d2d9608a7dcf6e8ce56",
+      "exts": [
+        ".rs"
+      ]
+    },
+    {
+      "id": "java",
+      "url": "https://github.com/tree-sitter/tree-sitter-java/releases/download/v0.23.5/tree-sitter-java.wasm",
+      "sha256": "4fdeac4ca6ca089f06c6f7e562abcac1733cd465728cc7031ebb73c2019122c4",
+      "exts": [
+        ".java"
+      ]
+    },
+    {
+      "id": "c",
+      "url": "https://github.com/tree-sitter/tree-sitter-c/releases/download/v0.24.1/tree-sitter-c.wasm",
+      "sha256": "c852c2a85ebf2beb636aa3b0ef7f7e70458684d74f6741b20dcb296885bed9f9",
+      "exts": [
+        ".c",
+        ".h"
+      ]
+    },
+    {
+      "id": "cpp",
+      "url": "https://github.com/tree-sitter/tree-sitter-cpp/releases/download/v0.23.4/tree-sitter-cpp.wasm",
+      "sha256": "174eb0deb75b2ec7881bcacda9f995648d8e683956e5c2267e69ab6dc503fcbf",
+      "exts": [
+        ".cpp",
+        ".cc",
+        ".cxx",
+        ".hpp",
+        ".hh",
+        ".hxx"
+      ]
+    },
+    {
+      "id": "ruby",
+      "url": "https://github.com/tree-sitter/tree-sitter-ruby/releases/download/v0.23.1/tree-sitter-ruby.wasm",
+      "sha256": "09a96427d7c72f0613ed470cd9812223fc4a91d6a9c025c0235cc6bd59ff96f4",
+      "exts": [
+        ".rb"
+      ]
+    },
+    {
+      "id": "csharp",
+      "url": "https://github.com/tree-sitter/tree-sitter-c-sharp/releases/download/v0.23.1/tree-sitter-c_sharp.wasm",
+      "sha256": "d7fe0bf8e8b8d26b2b253f375e3c43386b332d23f7b7b3e15d49fff180fe46e3",
+      "exts": [
+        ".cs"
+      ]
+    },
+    {
+      "id": "json",
+      "url": "https://github.com/tree-sitter/tree-sitter-json/releases/download/v0.24.8/tree-sitter-json.wasm",
+      "sha256": "d2119fb98d5912719b13f9458574f8608d2d29dfbe45f6be1f860ea1fe2a2405",
+      "exts": [
+        ".json",
+        ".jsonc"
+      ]
+    },
+    {
+      "id": "yaml",
+      "url": "https://github.com/tree-sitter-grammars/tree-sitter-yaml/releases/download/v0.7.2/tree-sitter-yaml.wasm",
+      "sha256": "0a0e5ebcfeb0b2bf272d071396eeed107b2c4b2617b69d5959b13f78b357a4d6",
+      "exts": [
+        ".yaml",
+        ".yml"
+      ]
+    },
+    {
+      "id": "markdown",
+      "url": "https://github.com/tree-sitter-grammars/tree-sitter-markdown/releases/download/v0.5.3/tree-sitter-markdown.wasm",
+      "sha256": "dd9fc12ac2804d7c7da787e4774125b32e4fb3c244e5e7031a77cb7dd8036020",
+      "exts": [
+        ".md",
+        ".mdx"
+      ]
+    }
+  ]
+}

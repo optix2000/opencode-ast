@@ -1,0 +1,9 @@
+{
+  // app metadata
+  "name": "app",
+  "version": 1,
+  "server": {
+    "host": "localhost",
+    "port": 3000
+  }
+}
