@@ -2,6 +2,7 @@ import path from "node:path"
 import { mkdtemp, realpath, rm, unlink } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { describe, expect, test } from "bun:test"
+import { Effect } from "effect"
 import { deps } from "../src/deps"
 import { extract } from "../src/extract"
 import plugin from "../src/index"
@@ -30,6 +31,11 @@ const jsTestFalsePositive = path.join(
 )
 const tsScopeEdge = path.join(import.meta.dir, "fixtures", "scope-edge.ts")
 const tsNamespace = path.join(import.meta.dir, "fixtures", "ts-namespace.ts")
+const tsExtractSignature = path.join(
+  import.meta.dir,
+  "fixtures",
+  "extract-signature.ts",
+)
 const py = path.join(import.meta.dir, "fixtures", "example.py")
 const pyRelative = path.join(import.meta.dir, "fixtures", "python-relative.py")
 const pyRelativeWhitespace = path.join(
@@ -46,6 +52,11 @@ const go = path.join(import.meta.dir, "fixtures", "example.go")
 const goKinds = path.join(import.meta.dir, "fixtures", "go-kinds.go")
 const cData = path.join(import.meta.dir, "fixtures", "c-data.c")
 const cIncludes = path.join(import.meta.dir, "fixtures", "c-includes.c")
+const cIncludesDuplicate = path.join(
+  import.meta.dir,
+  "fixtures",
+  "c-includes-duplicate.c",
+)
 const cIncludesSpacing = path.join(
   import.meta.dir,
   "fixtures",
@@ -55,8 +66,23 @@ const cHeader = path.join(import.meta.dir, "fixtures", "c-header.h")
 const cppHeader = path.join(import.meta.dir, "fixtures", "cpp-header.h")
 const rustMacros = path.join(import.meta.dir, "fixtures", "rust-macros.rs")
 const rustScope = path.join(import.meta.dir, "fixtures", "scope-rust.rs")
+const rustScopeExtra = path.join(
+  import.meta.dir,
+  "fixtures",
+  "scope-rust-extra.rs",
+)
 const javaPublic = path.join(import.meta.dir, "fixtures", "public.java")
+const javaPublicNested = path.join(
+  import.meta.dir,
+  "fixtures",
+  "public-nested.java",
+)
 const csharpPublic = path.join(import.meta.dir, "fixtures", "public.cs")
+const csharpPublicNested = path.join(
+  import.meta.dir,
+  "fixtures",
+  "public-nested.cs",
+)
 const jsonData = path.join(import.meta.dir, "fixtures", "sample.json")
 const jsoncData = path.join(import.meta.dir, "fixtures", "sample.jsonc")
 const yamlData = path.join(import.meta.dir, "fixtures", "sample.yaml")
@@ -211,6 +237,49 @@ describe("permissions", () => {
     const externalReq = asks.find((x) => x.permission === "external_directory")
     expect(externalReq).toBeUndefined()
   })
+
+  test("ast runs effect-based external_directory permission requests", async () => {
+    const hooks = await plugin({} as any)
+    const astTool = hooks.tool?.ast
+    expect(astTool).toBeDefined()
+
+    const dir = await mkdtemp(path.join(tmpdir(), "opencode-ast-test-"))
+    const external = path.join(dir, "external.json")
+    await Bun.write(external, '{"x":1}\n')
+
+    const asks: Array<{ permission: string; patterns: string[] }> = []
+    try {
+      await astTool!.execute(
+        {
+          operation: "outline",
+          filePath: external,
+        },
+        {
+          sessionID: "session_test",
+          messageID: "message_test",
+          agent: "test",
+          directory: import.meta.dir,
+          worktree: process.cwd(),
+          abort: new AbortController().signal,
+          metadata() {},
+          ask(input) {
+            return Effect.sync(() => {
+              asks.push({
+                permission: input.permission,
+                patterns: input.patterns,
+              })
+            })
+          },
+        },
+      )
+
+      expect(
+        asks.find((x) => x.permission === "external_directory"),
+      ).toBeDefined()
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
 })
 
 describe("wasm manifest", () => {
@@ -307,6 +376,34 @@ describe("typescript", () => {
     expect(txt).not.toContain("18: }")
   })
 
+  test("extract returns wrapped multiline signatures", async () => {
+    const out = await parse(tsExtractSignature)
+    const functionTxt = extract(
+      out.tree,
+      out.src,
+      out.lang,
+      "function",
+      "wrapped",
+      true,
+    )
+    const arrowTxt = extract(
+      out.tree,
+      out.src,
+      out.lang,
+      "variable",
+      "arrow",
+      true,
+    )
+    out.tree.delete()
+
+    expect(functionTxt).toContain("1: export function wrapped(")
+    expect(functionTxt).toContain("3: ): string {")
+    expect(functionTxt).not.toContain("4:   return input")
+    expect(arrowTxt).toContain("7: export const arrow = (")
+    expect(arrowTxt).toContain("9: ): string => {")
+    expect(arrowTxt).not.toContain("10:   return input")
+  })
+
   test("extract returns not found", async () => {
     const out = await parse(ts)
     const txt = extract(out.tree, out.src, out.lang, "function", "missing")
@@ -386,18 +483,16 @@ describe("typescript", () => {
     const line1 = scope(out.tree, out.lang, 1)
     const line8 = scope(out.tree, out.lang, 8)
     const line9 = scope(out.tree, out.lang, 9)
-    const line11 = scope(out.tree, out.lang, 11)
-    const line15 = scope(out.tree, out.lang, 15)
-    const line16 = scope(out.tree, out.lang, 16)
+    const line12 = scope(out.tree, out.lang, 12)
+    const line13 = scope(out.tree, out.lang, 13)
     out.tree.delete()
 
     expect(line1).toContain("exportedStart (function, lines 1-6)")
-    expect(line8).toContain("multiline (function, lines 8-13)")
-    expect(line9).toContain("multiline (function, lines 8-13)")
-    expect(line11).toContain("multiline (function, lines 8-13)")
-    expect(line15).toContain("Container (class, lines 15-21)")
-    expect(line16).toContain("Container (class, lines 15-21)")
-    expect(line16).toContain("method (method, lines 16-20)")
+    expect(line8).toContain("multiline (function, lines 8-10)")
+    expect(line9).toContain("multiline (function, lines 8-10)")
+    expect(line12).toContain("Container (class, lines 12-16)")
+    expect(line13).toContain("Container (class, lines 12-16)")
+    expect(line13).toContain("method (method, lines 13-15)")
   })
 })
 
@@ -610,6 +705,14 @@ describe("rust", () => {
     expect(txt).toContain("Line 10 is inside:")
     expect(txt).toContain("Worker (impl, lines 10-14)")
   })
+
+  test("scope labels rust modules and loops", async () => {
+    const out = await parse(rustScopeExtra)
+    const txt = scope(out.tree, out.lang, 3)
+    out.tree.delete()
+    expect(txt).toContain("inner (module, lines 1-7)")
+    expect(txt).toContain("loop (lines 3-5)")
+  })
 })
 
 describe("c", () => {
@@ -634,6 +737,12 @@ describe("c", () => {
     expect(txt).toContain("stdio.h (external, line 1)")
     expect(txt).toContain("local.h (local, line 2)")
     expect(txt).toContain("../relative.h (local, line 3)")
+  })
+
+  test("deps keeps same include target with different classifications", async () => {
+    const txt = await run(cIncludesDuplicate, deps)
+    expect(txt).toContain("foo.h (external, line 1)")
+    expect(txt).toContain("foo.h (local, line 2)")
   })
 
   test("parses plain .h files as c", async () => {
@@ -663,6 +772,14 @@ describe("java", () => {
     expect(txt).toContain("External (lines 5-8, exported)")
     expect(txt).toContain("run (lines 6-7, exported)")
   })
+
+  test("outline does not inherit public from containing classes", async () => {
+    const txt = await run(javaPublicNested, outline)
+    expect(txt).toContain("External (lines 1-4, exported)")
+    expect(txt).toContain("hidden (lines 2-2)")
+    expect(txt).not.toContain("hidden (lines 2-2, exported)")
+    expect(txt).toContain("run (lines 3-3, exported)")
+  })
 })
 
 describe("csharp", () => {
@@ -672,6 +789,14 @@ describe("csharp", () => {
     expect(txt).not.toContain("Internal (lines 1-4, exported)")
     expect(txt).toContain("External (lines 6-10, exported)")
     expect(txt).toContain("Run (lines 8-9, exported)")
+  })
+
+  test("outline does not inherit public from containing classes", async () => {
+    const txt = await run(csharpPublicNested, outline)
+    expect(txt).toContain("External (lines 1-5, exported)")
+    expect(txt).toContain("Hidden (lines 3-3)")
+    expect(txt).not.toContain("Hidden (lines 3-3, exported)")
+    expect(txt).toContain("Run (lines 4-4, exported)")
   })
 })
 

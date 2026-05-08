@@ -45,9 +45,6 @@ const goKind = (name: Node) => {
   if (direct?.type === "interface_type") return "interface"
 }
 
-const nearbyNodes = (node: Node) =>
-  [node, node.parent, node.parent?.parent].filter(isDefined)
-
 const firstLine = (node: Node) => node.text.split("\n", 1)[0] ?? node.text
 
 const kindFromTrail = (node: Node | null | undefined, max: number) => {
@@ -62,38 +59,30 @@ const kindFromTrail = (node: Node | null | undefined, max: number) => {
 }
 
 const hasPublicModifier = (def: Node) => {
-  const nodes = nearbyNodes(def)
-  for (const node of nodes) {
-    for (let i = 0; i < node.namedChildCount; i++) {
-      const child = node.namedChild(i)
-      if (!child) continue
-      if (
-        (child.type === "modifiers" ||
-          child.type === "modifier" ||
-          child.type === "visibility_modifier") &&
-        /\bpublic\b/.test(child.text)
-      ) {
-        return true
-      }
+  for (let i = 0; i < def.namedChildCount; i++) {
+    const child = def.namedChild(i)
+    if (!child) continue
+    if (
+      (child.type === "modifiers" ||
+        child.type === "modifier" ||
+        child.type === "visibility_modifier") &&
+      /\bpublic\b/.test(child.text)
+    ) {
+      return true
     }
-    if (/^\s*public\b/.test(firstLine(node))) return true
   }
-  return false
+  return /^\s*public\b/.test(firstLine(def))
 }
 
 const hasRustPub = (def: Node) => {
-  const nodes = nearbyNodes(def)
-  for (const node of nodes) {
-    const vis = node.childForFieldName("visibility")
-    if (vis && /^\s*pub(\b|\()/.test(vis.text)) return true
-    for (let i = 0; i < node.namedChildCount; i++) {
-      const child = node.namedChild(i)
-      if (!child || child.type !== "visibility_modifier") continue
-      if (/^\s*pub(\b|\()/.test(child.text)) return true
-    }
-    if (/^\s*pub(\b|\()/.test(firstLine(node))) return true
+  const vis = def.childForFieldName("visibility")
+  if (vis && /^\s*pub(\b|\()/.test(vis.text)) return true
+  for (let i = 0; i < def.namedChildCount; i++) {
+    const child = def.namedChild(i)
+    if (!child || child.type !== "visibility_modifier") continue
+    if (/^\s*pub(\b|\()/.test(child.text)) return true
   }
-  return false
+  return /^\s*pub(\b|\()/.test(firstLine(def))
 }
 
 const kind = (lang: string, name: Node, def: Node) => {

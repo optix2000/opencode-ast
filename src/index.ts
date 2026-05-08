@@ -2,6 +2,7 @@ import path from "node:path"
 import { realpath } from "node:fs/promises"
 import type { Plugin } from "@opencode-ai/plugin"
 import { tool } from "@opencode-ai/plugin"
+import { Effect } from "effect"
 import { deps } from "./deps"
 import { extract } from "./extract"
 import { outline } from "./outline"
@@ -27,6 +28,17 @@ const isExternalPath = async (
   if (isInside(dirRoot, file)) return false
   if (worktreeRoot === "/") return true
   return !isInside(worktreeRoot, file)
+}
+
+const isPromiseLike = (value: unknown): value is PromiseLike<unknown> =>
+  !!value && typeof (value as PromiseLike<unknown>).then === "function"
+
+const runAsk = async (value: unknown) => {
+  if (isPromiseLike(value)) {
+    await value
+    return
+  }
+  await Effect.runPromise(value as Effect.Effect<void>)
 }
 
 const plugin: Plugin = async () => {
@@ -72,15 +84,17 @@ Operations:
           if (await isExternalPath(file, ctx.directory, ctx.worktree)) {
             const parentDir = path.dirname(file)
             const glob = path.join(parentDir, "*").replaceAll("\\", "/")
-            await ctx.ask({
-              permission: "external_directory",
-              patterns: [glob],
-              always: [glob],
-              metadata: {
-                filepath: file,
-                parentDir,
-              },
-            })
+            await runAsk(
+              ctx.ask({
+                permission: "external_directory",
+                patterns: [glob],
+                always: [glob],
+                metadata: {
+                  filepath: file,
+                  parentDir,
+                },
+              }),
+            )
           }
 
           const op = {

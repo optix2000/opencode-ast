@@ -27,11 +27,12 @@
     "@opencode-ai/plugin": "*"
   },
   "dependencies": {
-    "web-tree-sitter": "0.26.6"
+    "effect": "4.0.0-beta.59",
+    "web-tree-sitter": "0.26.8"
   },
   "devDependencies": {
-    "@opencode-ai/plugin": "1.2.16",
-    "@types/bun": "1.3.10",
-    "typescript": "^5.7.0"
+    "@opencode-ai/plugin": "1.14.41",
+    "@types/bun": "1.3.13",
+    "typescript": "^6.0.3"
   }
 }

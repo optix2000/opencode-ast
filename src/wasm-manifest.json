@@ -1,7 +1,7 @@
 {
   "runtime": {
-    "url": "https://unpkg.com/web-tree-sitter@0.26.6/web-tree-sitter.wasm",
-    "sha256": "edb58ff2bb6087799ecd49437a27d69746656fa78083e842d3cbfd33f3b1e900"
+    "url": "https://unpkg.com/web-tree-sitter@0.26.8/web-tree-sitter.wasm",
+    "sha256": "082795b88fe15e4b64043f835b4d7160fbf95e801855122acc9509239b5ef916"
   },
   "grammars": [
     {
@@ -51,8 +51,8 @@
     },
     {
       "id": "rust",
-      "url": "https://github.com/tree-sitter/tree-sitter-rust/releases/download/v0.24.0/tree-sitter-rust.wasm",
-      "sha256": "44b8d1a2e307ee8933d7c0bcb6b0f30d56bc999999fd1d2d9608a7dcf6e8ce56",
+      "url": "https://github.com/tree-sitter/tree-sitter-rust/releases/download/v0.24.2/tree-sitter-rust.wasm",
+      "sha256": "24c89bd9252255e4aebbcbd7d2d308bd92c86dd95a130fdc80efa49577b8d738",
       "exts": [
         ".rs"
       ]
@@ -67,8 +67,8 @@
     },
     {
       "id": "c",
-      "url": "https://github.com/tree-sitter/tree-sitter-c/releases/download/v0.24.1/tree-sitter-c.wasm",
-      "sha256": "c852c2a85ebf2beb636aa3b0ef7f7e70458684d74f6741b20dcb296885bed9f9",
+      "url": "https://github.com/tree-sitter/tree-sitter-c/releases/download/v0.24.2/tree-sitter-c.wasm",
+      "sha256": "83e8d7902b9d7f8c7c5cd4bd9acb5c7eb5faf42c09f85546b183964d3b5f48f9",
       "exts": [
         ".c",
         ".h"
@@ -97,8 +97,8 @@
     },
     {
       "id": "csharp",
-      "url": "https://github.com/tree-sitter/tree-sitter-c-sharp/releases/download/v0.23.1/tree-sitter-c_sharp.wasm",
-      "sha256": "d7fe0bf8e8b8d26b2b253f375e3c43386b332d23f7b7b3e15d49fff180fe46e3",
+      "url": "https://github.com/tree-sitter/tree-sitter-c-sharp/releases/download/v0.23.5/tree-sitter-c_sharp.wasm",
+      "sha256": "6f69e1cae44e1c32c1eccc170dc5a9778fb94ff716f71113fe1f8c4299aa2f40",
       "exts": [
         ".cs"
       ]

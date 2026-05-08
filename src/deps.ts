@@ -62,14 +62,7 @@ export const deps = (
   const cfg = queryConfig(lang)
   if (!cfg) return "No imports query for this language"
   if (!cfg.imports.trim()) return "No imports found"
-  const unique = new Map<
-    string,
-    {
-      txt: string
-      type: "local" | "external"
-      line: number
-    }
-  >()
+  const unique = new Map<string, { txt: string; type: "local" | "external"; line: number }>()
   for (const row of query(lang, cfg.imports).matches(tree.rootNode)) {
     const src = row.captures.find((cap) => cap.name === "source")
     const imp = row.captures.find((cap) => cap.name === "import")
@@ -78,11 +71,14 @@ export const deps = (
     if (!includeTests && isTest(node, lang)) continue
     const raw = src?.node.text ?? node.text
     const txt = src ? cleanImportSource(raw) : pick(raw)
-    if (unique.has(txt)) continue
-    unique.set(txt, {
+    const type = local(lang, txt, raw) ? "local" : "external"
+    const line = node.startPosition.row + 1
+    const key = `${txt}:${type}:${line}`
+    if (unique.has(key)) continue
+    unique.set(key, {
       txt,
-      type: local(lang, txt, raw) ? "local" : "external",
-      line: node.startPosition.row + 1,
+      type,
+      line,
     })
   }
   if (!unique.size) return "No imports found"

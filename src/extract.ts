@@ -10,23 +10,28 @@ const lines = (allLines: string[], start: number, end: number) => {
 }
 
 const sigEnd = (node: Node): number => {
+  const bodyNodes = [
+    "block",
+    "compound_statement",
+    "function_body",
+    "declaration_list",
+    "field_declaration_list",
+    "enum_variant_list",
+    "class_body",
+    "statement_block",
+  ]
   for (let i = 0; i < node.namedChildCount; i++) {
     const child = node.namedChild(i)
     if (!child) continue
-    if (
-      [
-        "block",
-        "compound_statement",
-        "function_body",
-        "declaration_list",
-        "field_declaration_list",
-        "enum_variant_list",
-        "class_body",
-        "statement_block",
-      ].includes(child.type)
-    ) {
+    if (bodyNodes.includes(child.type)) {
       return child.startPosition.row + 1
     }
+  }
+  for (let i = 0; i < node.namedChildCount; i++) {
+    const child = node.namedChild(i)
+    if (!child) continue
+    const end = sigEnd(child)
+    if (end !== child.startPosition.row + 1) return end
   }
   return node.startPosition.row + 1
 }
