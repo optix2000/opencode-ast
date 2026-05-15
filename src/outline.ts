@@ -23,6 +23,7 @@ const heads = new Map<string, string>([
   ["namespace", "Namespaces"],
   ["variable", "Variables"],
   ["key", "Keys"],
+  ["block", "Blocks"],
   ["heading", "Headings"],
   ["symbol", "Symbols"],
 ])
@@ -56,6 +57,27 @@ const kindFromTrail = (node: Node | null | undefined, max: number) => {
     cur = cur.parent
     depth++
   }
+}
+
+const terraformBlockName = (def: Node, fallback: string) => {
+  if (def.type !== "block") return fallback
+  const parts: string[] = []
+  for (let i = 0; i < def.namedChildCount; i++) {
+    const child = def.namedChild(i)
+    if (!child) continue
+    if (child.type === "block_start" || child.type === "body") break
+    if (child.type === "identifier" || child.type === "string_lit") {
+      parts.push(unquote(child.text))
+    }
+  }
+  return parts.length ? parts.join(".") : fallback
+}
+
+const symbolName = (lang: string, rowKind: string, name: Node, def: Node) => {
+  if (lang === "terraform" && rowKind === "block") {
+    return terraformBlockName(def, name.text)
+  }
+  return rowKind === "key" ? unquote(name.text) : name.text
 }
 
 const hasPublicModifier = (def: Node) => {
@@ -128,8 +150,7 @@ export const symbolsWithNodes = (
       const def = row.captures.find((cap) => cap.name === "def")
       if (!name || !def) return
       const rowKind = kind(lang, name.node, def.node)
-      const rowName =
-        rowKind === "key" ? unquote(name.node.text) : name.node.text
+      const rowName = symbolName(lang, rowKind, name.node, def.node)
       return {
         name: rowName,
         kind: rowKind,

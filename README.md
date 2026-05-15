@@ -6,7 +6,7 @@ Handles broken syntax fine since tree-sitter is error-tolerant. No language serv
 
 ## Supported languages
 
-TypeScript, JavaScript, Python, Go, Rust, Java, C, C++, Ruby, C#, JSON, JSONC, YAML, Markdown.
+TypeScript, JavaScript, Python, Go, Rust, Java, C, C++, Ruby, C#, JSON, JSONC, YAML, Terraform, Markdown.
 
 ## Operations
 

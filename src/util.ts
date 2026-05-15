@@ -124,6 +124,7 @@ export const validKinds = [
   "variable",
   "macro",
   "key",
+  "block",
   "heading",
   "symbol",
 ] as const
@@ -179,6 +180,7 @@ export const kinds = new Map<string, string>([
   ["mod_item", "module"],
   ["variable_declarator", "variable"],
   ["init_declarator", "variable"],
+  ["attribute", "key"],
   ["pair", "key"],
   ["block_mapping_pair", "key"],
   ["flow_pair", "key"],

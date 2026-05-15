@@ -279,6 +279,24 @@ export const queries = {
       "flow_sequence",
     ],
   },
+  terraform: {
+    outline: `
+(block (identifier) @name) @def
+
+(config_file
+  (body
+    (attribute (identifier) @name) @def))
+`,
+    imports: ``,
+    scopes: [
+      "block",
+      "object",
+      "tuple",
+      "for_expr",
+      "template_for",
+      "template_if",
+    ],
+  },
   markdown: {
     outline: `
 (section (atx_heading heading_content: (inline) @name) @def)

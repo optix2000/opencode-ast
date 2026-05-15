@@ -86,6 +86,8 @@ const csharpPublicNested = path.join(
 const jsonData = path.join(import.meta.dir, "fixtures", "sample.json")
 const jsoncData = path.join(import.meta.dir, "fixtures", "sample.jsonc")
 const yamlData = path.join(import.meta.dir, "fixtures", "sample.yaml")
+const terraformData = path.join(import.meta.dir, "fixtures", "example.tf")
+const terraformVars = path.join(import.meta.dir, "fixtures", "example.tfvars")
 const mdData = path.join(import.meta.dir, "fixtures", "sample.md")
 const wasmManifest = path.join(
   import.meta.dir,
@@ -873,6 +875,62 @@ describe("yaml", () => {
     expect(txt).toContain("Line 4 is inside:")
     expect(txt).toContain("mapping (lines 1-9)")
     expect(txt).toContain("mapping (lines 4-5)")
+  })
+})
+
+describe("terraform", () => {
+  test("parses .tf files with terraform grammar", async () => {
+    const out = await parse(terraformData)
+    expect(out.lang).toBe("terraform")
+    expect(out.tree.rootNode.type).toBe("config_file")
+    out.tree.delete()
+  })
+
+  test("outline includes block labels", async () => {
+    const txt = await run(terraformData, outline)
+    expect(txt).toContain("Blocks:")
+    expect(txt).toContain("variable.region (lines 1-3)")
+    expect(txt).toContain("locals (lines 5-7)")
+    expect(txt).toContain("resource.aws_instance.web (lines 9-19)")
+    expect(txt).toContain("lifecycle (lines 16-18)")
+    expect(txt).toContain("module.vpc (lines 21-23)")
+  })
+
+  test("extract finds terraform block by label path", async () => {
+    const out = await parse(terraformData)
+    const txt = extract(
+      out.tree,
+      out.src,
+      out.lang,
+      "block",
+      "resource.aws_instance.web",
+    )
+    out.tree.delete()
+    expect(txt).toContain("// block resource.aws_instance.web (lines 9-19)")
+    expect(txt).toContain('9: resource "aws_instance" "web" {')
+  })
+
+  test("outline includes top-level tfvars keys", async () => {
+    const txt = await run(terraformVars, outline)
+    expect(txt).toContain("Keys:")
+    expect(txt).toContain("region (lines 1-1)")
+    expect(txt).toContain("instance_count (lines 2-2)")
+    expect(txt).toContain("nested (lines 4-6)")
+    expect(txt).not.toContain("ignored (lines")
+  })
+
+  test("deps returns no imports", async () => {
+    const txt = await run(terraformData, deps)
+    expect(txt).toBe("No imports found")
+  })
+
+  test("scope shows nested block chain", async () => {
+    const out = await parse(terraformData)
+    const txt = scope(out.tree, out.lang, 17)
+    out.tree.delete()
+    expect(txt).toContain("Line 17 is inside:")
+    expect(txt).toContain("resource (block, lines 9-19)")
+    expect(txt).toContain("lifecycle (block, lines 16-18)")
   })
 })
 
