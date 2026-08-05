@@ -1,13 +1,17 @@
 #!/usr/bin/env bun
 
 import path from "node:path"
+import { chmod, mkdir, rm } from "node:fs/promises"
+
+const dist = path.join(import.meta.dir, "dist")
+await rm(dist, { recursive: true, force: true })
+await mkdir(dist, { recursive: true })
 
 const out = await Bun.build({
   entrypoints: [path.join(import.meta.dir, "src/index.ts")],
   target: "bun",
   format: "esm",
   minify: false,
-  external: ["@opencode-ai/plugin"],
 })
 
 if (!out.success) {
@@ -23,6 +27,7 @@ if (!artifact) {
 }
 const result = await artifact.text()
 
-const dest = path.join(import.meta.dir, "dist", "ast.js")
+const dest = path.join(dist, "opencode-ast.js")
 await Bun.write(dest, result)
+await chmod(dest, 0o755)
 console.log(`Bundled to ${dest} (${(result.length / 1024).toFixed(1)} KB)`)

@@ -1,37 +1,39 @@
 {
   "name": "opencode-ast",
-  "version": "0.2.0",
-  "description": "AST plugin for OpenCode — tree-sitter powered code structure analysis",
+  "version": "0.3.0",
+  "description": "Tree-sitter powered AST analysis MCP server",
   "type": "module",
-  "main": "src/index.ts",
+  "main": "dist/opencode-ast.js",
   "exports": {
     ".": {
-      "import": "./src/index.ts",
-      "default": "./src/index.ts"
+      "import": "./dist/opencode-ast.js",
+      "default": "./dist/opencode-ast.js"
     }
   },
+  "bin": {
+    "opencode-ast": "./dist/opencode-ast.js"
+  },
   "files": [
-    "src"
+    "dist"
   ],
   "scripts": {
+    "start": "bun run src/index.ts",
     "test": "bun test",
-    "typecheck": "bunx tsc --noEmit",
+    "typecheck": "bun x tsc --noEmit",
     "bundle": "bun run bundle.ts",
     "update:wasm-manifest": "bun run update-wasm-manifest.ts",
-    "prepublishOnly": "bun run bundle"
+    "prepack": "bun run bundle",
+    "prepublishOnly": "bun test && bun run typecheck && bun run bundle"
   },
   "engines": {
     "bun": ">=1.0"
   },
-  "peerDependencies": {
-    "@opencode-ai/plugin": "*"
-  },
   "dependencies": {
-    "effect": "4.0.0-beta.59",
-    "web-tree-sitter": "0.26.8"
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "web-tree-sitter": "0.26.8",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@opencode-ai/plugin": "1.14.41",
     "@types/bun": "1.3.13",
     "typescript": "^6.0.3"
   }
