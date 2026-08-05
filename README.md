@@ -1,97 +1,110 @@
 # opencode-ast
 
-AST plugin for [OpenCode](https://github.com/anomalyco/opencode) that parses source files with [tree-sitter](https://tree-sitter.github.io/) (via WASM) and exposes structural queries: outline, extract, deps, and scope.
+A local [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server for tree-sitter-powered source-code analysis. It exposes structural outline, symbol extraction, dependency, and scope queries without requiring a language server.
 
-Handles broken syntax fine since tree-sitter is error-tolerant. No language server involved.
+Tree-sitter is error-tolerant, so the tools continue to work on partially edited or syntactically broken files.
 
 ## Supported languages
 
-TypeScript, JavaScript, Python, Go, Rust, Java, C, C++, Ruby, C#, JSON, JSONC, YAML, Terraform, Markdown.
+TypeScript, JavaScript, Python, Go, Rust, Java, C, C++, Ruby, C#, JSON, JSONC, YAML, Terraform, and Markdown.
 
-## Operations
+## MCP tool
 
-### outline
+The server exposes one `ast` tool with four operations:
 
-Structural overview of a file — functions, classes, types with line ranges and export status.
+- `outline` — list functions, classes, types, and other symbols with line ranges.
+- `extract` — return one symbol's line-numbered source, or only its signature.
+- `deps` — list imports and classify them as local or external.
+- `scope` — show the enclosing scope chain for a line.
 
-```
-ast { operation: "outline", filePath: "src/parser.ts" }
-```
+Example arguments:
 
-Output looks like:
-
-```
-Functions:
-  parse (lines 57-76, exported)
-  query (lines 78-84, exported)
-
-Variables:
-  ready (lines 24-32)
-  load (lines 18-22)
+```json
+{ "operation": "outline", "filePath": "src/parser.ts" }
 ```
 
-You can pass `filter: "struct,function"` to limit output to specific kinds.
-
-### extract
-
-Pull one symbol's source by name. Optionally pass `kind` to disambiguate, or `signature: true` to get just the declaration line.
-
-```
-ast { operation: "extract", filePath: "src/parser.ts", name: "parse" }
-ast { operation: "extract", filePath: "src/parser.ts", name: "Parser", kind: "class" }
-```
-
-### deps
-
-List imports, classified as local or external.
-
-```
-ast { operation: "deps", filePath: "src/parser.ts" }
+```json
+{
+  "operation": "extract",
+  "filePath": "src/parser.ts",
+  "name": "parse",
+  "kind": "function",
+  "signature": true
+}
 ```
 
-### scope
-
-Given a line number, returns the enclosing scope chain.
-
-```
-ast { operation: "scope", filePath: "src/parser.ts", line: 15 }
-
-Line 15 is inside:
-  process (function, lines 13-18)
-    if block (lines 14-16)
+```json
+{ "operation": "deps", "filePath": "src/parser.ts" }
 ```
 
-Both outline and deps skip test-scoped symbols by default — set `includeTests: true` to include them.
+```json
+{ "operation": "scope", "filePath": "src/parser.ts", "line": 15 }
+```
 
-## Install
+`outline` accepts an optional comma-separated `filter`, such as `"struct,trait,enum"`. `outline` and `deps` skip test-scoped symbols by default; pass `includeTests: true` to include them.
 
-Build and copy to the plugins directory:
+## Install and configure
+
+[Bun](https://bun.sh/) is required.
+
+Add the server to any stdio-compatible MCP client. Use an absolute workspace path so relative `filePath` values resolve predictably:
+
+```json
+{
+  "mcpServers": {
+    "opencode-ast": {
+      "command": "bunx",
+      "args": [
+        "opencode-ast",
+        "--root",
+        "/absolute/path/to/your/project"
+      ]
+    }
+  }
+}
+```
+
+To run a local checkout instead:
+
+```json
+{
+  "mcpServers": {
+    "opencode-ast": {
+      "command": "bun",
+      "args": [
+        "/absolute/path/to/opencode-ast/src/index.ts",
+        "--root",
+        "/absolute/path/to/your/project"
+      ]
+    }
+  }
+}
+```
+
+When `--root` is omitted, the server uses its current working directory.
+
+## Workspace safety
+
+The server only reads files inside its configured workspace root. Relative or absolute paths that resolve inside the root are accepted; `..` traversal and symlinks that resolve outside the root are rejected.
+
+Source parsing is limited to 8 MiB per file by default. Override the limit with:
 
 ```sh
-bun run bundle.ts
-cp dist/ast.js ~/.config/opencode/plugins/ast.js
+OPENCODE_AST_MAX_SOURCE_BYTES=<bytes>
 ```
-
-OpenCode auto-loads `.js` files from `~/.config/opencode/plugins/`.
-
-For per-project use, put the bundle in `.opencode/plugins/ast.js` and add `"plugin": ["file://.opencode/plugins/ast.js"]` to `opencode.json`.
 
 ## Grammars
 
-WASM grammar files are fetched from tree-sitter GitHub releases on first use and cached in `~/.cache/opencode-ast/`.
+WASM grammar files are downloaded from pinned tree-sitter release URLs on first use and cached in `~/.cache/opencode-ast/`.
 
-Behavior details:
-
-- Downloads use a 15s timeout and up to 3 attempts for transient failures.
-- In-flight downloads are deduplicated per process to avoid duplicate fetches.
+- Downloads use a 15-second timeout and up to three attempts for transient failures.
 - Runtime and grammar WASM files are pinned with SHA-256 checksums.
-- Downloaded and cached WASM files are checksum-verified before load; mismatches fail closed.
-- Query objects are cached with an LRU cap of 100 entries per language.
-- Source parsing is limited to 8 MiB per file by default.
-  Override with `OPENCODE_AST_MAX_SOURCE_BYTES=<bytes>`.
-- `.h` files are auto-routed to C or C++ grammar based on lightweight syntax heuristics.
+- Cached files are checksum-verified before loading; mismatches fail closed.
+- In-flight downloads are deduplicated per process.
+- Compiled queries use an LRU cache capped at 100 entries per language.
+- `.h` files are routed to C or C++ using lightweight syntax heuristics.
 
-When upgrading grammar/runtime URLs, refresh checksums:
+Refresh pinned checksums after changing grammar/runtime URLs:
 
 ```sh
 bun run update:wasm-manifest
@@ -99,31 +112,21 @@ bun run update:wasm-manifest
 
 Optional flags:
 
-- Bump all selected WASM URLs to latest before hashing:
-
 ```sh
 bun run update:wasm-manifest -- --bump-latest
-```
-
-- Bump/hash only one target (`runtime` or one grammar id such as `typescript`):
-
-```sh
 bun run update:wasm-manifest -- --only typescript
 bun run update:wasm-manifest -- --bump-latest --only runtime
 ```
 
-## Safety
-
-- `filePath` can resolve outside the active workspace/worktree.
-  OpenCode may prompt for permission before reading external paths.
-
 ## Development
 
-Requires [Bun](https://bun.sh).
+This repository uses Bun. Dependency installation enforces a 14-day minimum package age through `bunfig.toml`.
 
 ```sh
 bun install
 bun test
-bunx tsc --noEmit
-bun run bundle.ts
+bun run typecheck
+bun run bundle
 ```
+
+The production stdio bundle is written to `dist/opencode-ast.js`.
