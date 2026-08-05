@@ -23,9 +23,10 @@ const name = (node: Node) => {
   return firstId(node)?.text
 }
 
-const text = (node: Node) => {
+const text = (node: Node, lang: string) => {
   const tag = kinds.get(node.type) ?? "scope"
-  if (tag.endsWith("block") || tag.endsWith("loop")) {
+  const namedTerraformBlock = lang === "terraform" && node.type === "block"
+  if (!namedTerraformBlock && (tag.endsWith("block") || tag.endsWith("loop"))) {
     return `${tag} (lines ${node.startPosition.row + 1}-${node.endPosition.row + 1})`
   }
   const id = name(node)
@@ -75,7 +76,7 @@ export const scope = (tree: Tree, lang: string, line: number): string => {
     return a.endIndex - b.endIndex
   })
   const out = all
-    .map((node, idx) => `${"  ".repeat(idx + 1)}${text(node)}`)
+    .map((node, idx) => `${"  ".repeat(idx + 1)}${text(node, lang)}`)
     .join("\n")
   return `Line ${line} is inside:\n${out}`
 }
