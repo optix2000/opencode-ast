@@ -24,15 +24,14 @@
     "bun": ">=1.0"
   },
   "peerDependencies": {
-    "@opencode-ai/plugin": "*"
+    "@opencode/plugin": "^2.0.29"
   },
   "dependencies": {
-    "effect": "4.0.0-beta.59",
-    "web-tree-sitter": "0.26.8"
+    "web-tree-sitter": "0.27.1"
   },
   "devDependencies": {
-    "@opencode-ai/plugin": "1.14.41",
-    "@types/bun": "1.3.13",
-    "typescript": "^6.0.3"
+    "@opencode/plugin": "2.0.29",
+    "@types/bun": "1.4.3",
+    "typescript": "^7.0.2"
   }
 }

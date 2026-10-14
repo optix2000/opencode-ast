@@ -1,7 +1,7 @@
 {
   "runtime": {
-    "url": "https://unpkg.com/web-tree-sitter@0.26.8/web-tree-sitter.wasm",
-    "sha256": "082795b88fe15e4b64043f835b4d7160fbf95e801855122acc9509239b5ef916"
+    "url": "https://unpkg.com/web-tree-sitter@0.27.1/web-tree-sitter.wasm",
+    "sha256": "beca80e44cccbf2299ed4d1e3fa6462a9a6fe818aeebf847547a392227ce4acc"
   },
   "grammars": [
     {

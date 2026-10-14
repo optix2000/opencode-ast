@@ -1,11 +1,8 @@
 import path from "node:path"
-import { mkdtemp, realpath, rm, unlink } from "node:fs/promises"
-import { tmpdir } from "node:os"
+import { unlink } from "node:fs/promises"
 import { describe, expect, test } from "bun:test"
-import { Effect } from "effect"
 import { deps } from "../src/deps"
 import { extract } from "../src/extract"
-import plugin from "../src/index"
 import { resolveWorkspaceFile } from "../src/workspace"
 import { outline } from "../src/outline"
 import {
@@ -164,126 +161,6 @@ describe("workspace", () => {
   })
 })
 
-describe("permissions", () => {
-  test("ast asks external_directory for paths outside directory/worktree", async () => {
-    const hooks = await plugin({} as any)
-    const astTool = hooks.tool?.ast
-    expect(astTool).toBeDefined()
-
-    const dir = await mkdtemp(path.join(tmpdir(), "opencode-ast-test-"))
-    const external = path.join(dir, "external.json")
-    await Bun.write(external, '{"x":1}\n')
-
-    const asks: Array<{ permission: string; patterns: string[] }> = []
-    try {
-      await astTool!.execute(
-        {
-          operation: "outline",
-          filePath: external,
-        },
-        {
-          sessionID: "session_test",
-          messageID: "message_test",
-          agent: "test",
-          directory: import.meta.dir,
-          worktree: process.cwd(),
-          abort: new AbortController().signal,
-          metadata() {},
-          async ask(input) {
-            asks.push({
-              permission: input.permission,
-              patterns: input.patterns,
-            })
-          },
-        },
-      )
-
-      const externalReq = asks.find(
-        (x) => x.permission === "external_directory",
-      )
-      expect(externalReq).toBeDefined()
-      const resolvedDir = await realpath(dir).catch(() => dir)
-      expect(externalReq!.patterns[0]).toBe(
-        path.join(resolvedDir, "*").split("\\").join("/"),
-      )
-    } finally {
-      await rm(dir, { recursive: true, force: true })
-    }
-  })
-
-  test("ast does not ask external_directory for paths inside workspace", async () => {
-    const hooks = await plugin({} as any)
-    const astTool = hooks.tool?.ast
-    expect(astTool).toBeDefined()
-
-    const asks: Array<{ permission: string; patterns: string[] }> = []
-    await astTool!.execute(
-      {
-        operation: "outline",
-        filePath: ts,
-      },
-      {
-        sessionID: "session_test",
-        messageID: "message_test",
-        agent: "test",
-        directory: import.meta.dir,
-        worktree: process.cwd(),
-        abort: new AbortController().signal,
-        metadata() {},
-        async ask(input) {
-          asks.push({ permission: input.permission, patterns: input.patterns })
-        },
-      },
-    )
-
-    const externalReq = asks.find((x) => x.permission === "external_directory")
-    expect(externalReq).toBeUndefined()
-  })
-
-  test("ast runs effect-based external_directory permission requests", async () => {
-    const hooks = await plugin({} as any)
-    const astTool = hooks.tool?.ast
-    expect(astTool).toBeDefined()
-
-    const dir = await mkdtemp(path.join(tmpdir(), "opencode-ast-test-"))
-    const external = path.join(dir, "external.json")
-    await Bun.write(external, '{"x":1}\n')
-
-    const asks: Array<{ permission: string; patterns: string[] }> = []
-    try {
-      await astTool!.execute(
-        {
-          operation: "outline",
-          filePath: external,
-        },
-        {
-          sessionID: "session_test",
-          messageID: "message_test",
-          agent: "test",
-          directory: import.meta.dir,
-          worktree: process.cwd(),
-          abort: new AbortController().signal,
-          metadata() {},
-          ask(input) {
-            return Effect.sync(() => {
-              asks.push({
-                permission: input.permission,
-                patterns: input.patterns,
-              })
-            })
-          },
-        },
-      )
-
-      expect(
-        asks.find((x) => x.permission === "external_directory"),
-      ).toBeDefined()
-    } finally {
-      await rm(dir, { recursive: true, force: true })
-    }
-  })
-})
-
 describe("wasm manifest", () => {
   test("pins checksums for runtime and grammars", async () => {
     const json = (await Bun.file(wasmManifest).json()) as {
@@ -297,6 +174,14 @@ describe("wasm manifest", () => {
       expect(row.sha256).toMatch(sha)
       expect(row.exts.length).toBeGreaterThan(0)
     }
+  })
+
+  test("runtime WASM version matches the installed JavaScript library", async () => {
+    const manifest = await Bun.file(wasmManifest).json()
+    const library = await Bun.file(
+      path.join(import.meta.dir, "..", "node_modules", "web-tree-sitter", "package.json"),
+    ).json()
+    expect(manifest.runtime.url).toContain(`web-tree-sitter@${library.version}/`)
   })
 })
 

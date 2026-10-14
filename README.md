@@ -1,6 +1,6 @@
 # opencode-ast
 
-AST plugin for [OpenCode](https://github.com/anomalyco/opencode) that parses source files with [tree-sitter](https://tree-sitter.github.io/) (via WASM) and exposes structural queries: outline, extract, deps, and scope.
+AST plugin for [OpenCode V2](https://opencode.ai/v2/docs/) that parses source files with [tree-sitter](https://tree-sitter.github.io/) (via WASM) and exposes structural queries: outline, extract, deps, and scope.
 
 Handles broken syntax fine since tree-sitter is error-tolerant. No language server involved.
 
@@ -65,16 +65,29 @@ Both outline and deps skip test-scoped symbols by default — set `includeTests:
 
 ## Install
 
-Build and copy to the plugins directory:
+Requires OpenCode **2.0.29 or newer**. This version uses the V2 plugin API and does not support OpenCode V1.
+
+Build and copy to the global plugins directory:
 
 ```sh
-bun run bundle.ts
+bun install
+bun run bundle
+mkdir -p ~/.config/opencode/plugins
 cp dist/ast.js ~/.config/opencode/plugins/ast.js
 ```
 
 OpenCode auto-loads `.js` files from `~/.config/opencode/plugins/`.
 
-For per-project use, put the bundle in `.opencode/plugins/ast.js` and add `"plugin": ["file://.opencode/plugins/ast.js"]` to `opencode.json`.
+For per-project use, put the bundle in `.opencode/plugins/ast.js`; OpenCode discovers it automatically, with no config entry needed. For a bundle elsewhere, use the native V2 config:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugins": ["./dist/ast.js"]
+}
+```
+
+The bundle imports `@opencode/plugin` from the host; the bundled tree-sitter library and pinned runtime WASM are version-matched.
 
 ## Grammars
 
@@ -115,7 +128,8 @@ bun run update:wasm-manifest -- --bump-latest --only runtime
 ## Safety
 
 - `filePath` can resolve outside the active workspace/worktree.
-  OpenCode may prompt for permission before reading external paths.
+  Relative paths resolve from the executing session's directory.
+- OpenCode's V2 `external_directory` and `read` permissions are checked before reading files; denials stop execution.
 
 ## Development
 
