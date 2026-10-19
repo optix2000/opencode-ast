@@ -129,7 +129,8 @@ bun run update:wasm-manifest -- --bump-latest --only runtime
 
 - `filePath` can resolve outside the active workspace/worktree.
   Relative paths resolve from the executing session's directory.
-- OpenCode's V2 `external_directory` and `read` permissions are checked before reading files; denials stop execution.
+- OpenCode's V2 `ast`, `external_directory`, and `read` permissions are checked before reading files; denials stop execution.
+- Cancellation is checked between permission waits and parsing. The Promise plugin permission API cannot cancel a pending approval, and shared grammar downloads are not interrupted.
 
 ## Development
 

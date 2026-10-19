@@ -25,7 +25,11 @@ const isExternalPath = async (
     path.resolve(worktree),
   )
   if (isInside(dirRoot, file)) return false
-  if (worktreeRoot === "/") return true
+  // An older tool snapshot must not retain its checkout's access after a session moves away.
+  if (
+    worktreeRoot === path.parse(worktreeRoot).root ||
+    !isInside(worktreeRoot, dirRoot)
+  ) return true
   return !isInside(worktreeRoot, file)
 }
 
@@ -95,7 +99,11 @@ Operations:
             { sessionID: context.sessionID },
             { signal: context.signal },
           )
-          const directory = session.location.directory
+          context.signal.throwIfAborted()
+          // Compare canonical files to a canonical session root so relative read rules still match.
+          const directory = await realpath(session.location.directory).catch(() =>
+            path.resolve(session.location.directory),
+          )
           // The active worktree is distinct from the project's canonical checkout.
           const worktree = ctx.location.project.directory
           const resolved = await resolveWorkspaceFile(
@@ -107,6 +115,7 @@ Operations:
           const rel = resolved.rel
 
           const external = await isExternalPath(file, directory, worktree)
+          context.signal.throwIfAborted()
           const permissionContext = {
             sessionID: context.sessionID,
             agent: context.agent,
@@ -116,6 +125,17 @@ Operations:
               id: context.id,
             },
           }
+          const resource = (external ? file : path.relative(directory, file))
+            .replaceAll("\\", "/")
+          // Tool options only filter catalog availability; enforce ask and path-specific ast rules here.
+          await ctx.permission.assert({
+            ...permissionContext,
+            action: "ast",
+            resources: [resource],
+            save: [resource],
+            metadata: { filepath: file },
+          })
+          context.signal.throwIfAborted()
           if (external) {
             const parentDir = path.dirname(file)
             const glob = path.join(parentDir, "*").replaceAll("\\", "/")
@@ -126,9 +146,8 @@ Operations:
               save: [glob],
               metadata: { filepath: file, parentDir },
             })
+            context.signal.throwIfAborted()
           }
-          const resource = (external ? file : path.relative(directory, file))
-            .replaceAll("\\", "/")
           await ctx.permission.assert({
             ...permissionContext,
             action: "read",
@@ -152,6 +171,7 @@ Operations:
                 : args.filter || ""
           const title = `${op} ${rel}${detail ? ` (${detail})` : ""}`
           await context.progress({ title })
+          context.signal.throwIfAborted()
           const out = await parse(file)
           try {
             context.signal.throwIfAborted()

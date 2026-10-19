@@ -14,6 +14,7 @@ type HostOptions = {
   worktree?: string
   canonical?: string
   assert?: (input: PermissionInput) => Promise<void>
+  progress?: () => void
   signal?: AbortSignal
 }
 
@@ -31,6 +32,7 @@ const harness = async (options: HostOptions = {}) => {
     signal: options.signal ?? new AbortController().signal,
     async progress(update) {
       progress.push(update)
+      options.progress?.()
     },
   } as ToolContext
   const editor = {
@@ -112,8 +114,8 @@ describe("OpenCode V2 plugin", () => {
     expect(result.content).toContain(expected)
     expect(result.metadata?.title).toContain("test/fixtures/example.ts")
     expect(host.progress).toEqual([result.metadata!])
-    expect(host.permissions.map((input) => input.action)).toEqual(["read"])
-    expect(host.permissions[0]!.resources).toEqual(["fixtures/example.ts"])
+    expect(host.permissions.map((input) => input.action)).toEqual(["ast", "read"])
+    expect(host.permissions[1]!.resources).toEqual(["fixtures/example.ts"])
   })
 
   test("forwards filter and signature options", async () => {
@@ -153,8 +155,8 @@ describe("OpenCode V2 plugin", () => {
       { operation: "outline", filePath: "../src/workspace.ts" }, host.context,
     )
     expect(result.content).toContain("resolveWorkspaceFile")
-    expect(host.permissions.map((input) => input.action)).toEqual(["read"])
-    expect(host.permissions[0]!.resources).toEqual(["../src/workspace.ts"])
+    expect(host.permissions.map((input) => input.action)).toEqual(["ast", "read"])
+    expect(host.permissions[1]!.resources).toEqual(["../src/workspace.ts"])
   })
 
   test("checks external-directory approval before the canonical file read", async () => {
@@ -169,9 +171,9 @@ describe("OpenCode V2 plugin", () => {
       const canonical = await realpath(file)
       const glob = path.join(path.dirname(canonical), "*")
       expect(host.permissions.map((input) => input.action)).toEqual([
-        "external_directory", "read",
+        "ast", "external_directory", "read",
       ])
-      expect(host.permissions[0]).toMatchObject({
+      expect(host.permissions[1]).toMatchObject({
         sessionID: host.context.sessionID,
         agent: host.context.agent,
         resources: [glob],
@@ -180,13 +182,13 @@ describe("OpenCode V2 plugin", () => {
           type: "tool", messageID: host.context.messageID, id: host.context.id,
         },
       })
-      expect(host.permissions[1]!.resources).toEqual([canonical])
+      expect(host.permissions[2]!.resources).toEqual([canonical])
     } finally {
       await rm(directory, { recursive: true, force: true })
     }
   })
 
-  test.each(["external_directory", "read"])("propagates %s denials without parsing", async (action) => {
+  test.each(["ast", "external_directory", "read"])("propagates %s denials without parsing", async (action) => {
     const directory = await tempDirectory()
     try {
       const denied = new Error(`denied ${action}`)
@@ -201,7 +203,7 @@ describe("OpenCode V2 plugin", () => {
         filePath: path.join(directory, "missing.json"),
       }, host.context)).rejects.toBe(denied)
       expect(host.progress).toHaveLength(0)
-      expect(host.permissions).toHaveLength(action === "read" ? 2 : 1)
+      expect(host.permissions).toHaveLength(["ast", "external_directory", "read"].indexOf(action) + 1)
     } finally {
       await rm(directory, { recursive: true, force: true })
     }
@@ -218,7 +220,7 @@ describe("OpenCode V2 plugin", () => {
           operation: "outline",
           filePath: path.join(import.meta.dir, "fixtures/example.ts"),
         }, host.context)
-        expect(host.permissions[0]!.action).toBe("external_directory")
+        expect(host.permissions[1]!.action).toBe("external_directory")
       }
     } finally {
       await rm(directory, { recursive: true, force: true })
@@ -238,10 +240,35 @@ describe("OpenCode V2 plugin", () => {
       await host.tool.execute(
         { operation: "outline", filePath: link }, host.context,
       )
-      expect(host.permissions[0]!.action).toBe("external_directory")
-      expect(host.permissions[1]!.resources).toEqual([await realpath(file)])
+      expect(host.permissions[1]!.action).toBe("external_directory")
+      expect(host.permissions[2]!.resources).toEqual([await realpath(file)])
     } finally {
       await rm(link, { force: true })
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+
+  test("matches read rules relative to a symlinked session directory", async () => {
+    const directory = await tempDirectory()
+    try {
+      const actual = path.join(directory, "actual")
+      const linked = path.join(directory, "linked")
+      await mkdir(actual)
+      await Bun.write(path.join(actual, "secret.json"), '{"secret":true}\n')
+      await symlink(actual, linked)
+      const denied = new Error("secret read denied")
+      const host = await harness({
+        directory: linked, worktree: linked,
+        async assert(input) {
+          if (input.action === "read" && input.resources.includes("secret.json")) throw denied
+        },
+      })
+      await expect(host.tool.execute({
+        operation: "outline", filePath: "secret.json",
+      }, host.context)).rejects.toBe(denied)
+      expect(host.permissions.map((input) => input.action)).toEqual(["ast", "read"])
+      expect(host.progress).toHaveLength(0)
+    } finally {
       await rm(directory, { recursive: true, force: true })
     }
   })
@@ -253,5 +280,97 @@ describe("OpenCode V2 plugin", () => {
     )).rejects.toThrow()
     expect(host.permissions).toHaveLength(0)
     expect(host.progress).toHaveLength(0)
+  })
+
+  test.each(["approve", "reject"])("waits for external-directory %s before reading", async (reply) => {
+    const directory = await tempDirectory()
+    // Separate notification and reply gates make the pending approval observable without timers.
+    const entered = Promise.withResolvers<void>()
+    const approval = Promise.withResolvers<void>()
+    try {
+      const file = path.join(directory, "external.json")
+      await Bun.write(file, '{"x":1}\n')
+      const host = await harness({
+        async assert(input) {
+          if (input.action !== "external_directory") return
+          entered.resolve()
+          await approval.promise
+        },
+      })
+      const pending = host.tool.execute({ operation: "outline", filePath: file }, host.context)
+      await entered.promise
+      expect(host.permissions.map((input) => input.action)).toEqual(["ast", "external_directory"])
+      expect(host.progress).toHaveLength(0)
+      if (reply === "reject") {
+        const denied = new Error("approval rejected")
+        approval.reject(denied)
+        await expect(pending).rejects.toBe(denied)
+        expect(host.permissions).toHaveLength(2)
+        expect(host.progress).toHaveLength(0)
+        return
+      }
+      approval.resolve()
+      expect((await pending).content).toContain("x")
+      expect(host.permissions.map((input) => input.action)).toEqual(["ast", "external_directory", "read"])
+    } finally {
+      approval.resolve()
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+
+  test("does not retain the original worktree boundary after a session move", async () => {
+    const directory = await tempDirectory()
+    try {
+      const host = await harness({ directory })
+      await host.tool.execute({
+        operation: "outline",
+        filePath: path.join(import.meta.dir, "fixtures/example.ts"),
+      }, host.context)
+      expect(host.permissions.map((input) => input.action)).toEqual(["ast", "external_directory", "read"])
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+
+  test.each(["ast", "external_directory", "read"])("stops after a cancelled %s approval wait", async (action) => {
+    const directory = await tempDirectory()
+    const controller = new AbortController()
+    const entered = Promise.withResolvers<void>()
+    const approval = Promise.withResolvers<void>()
+    try {
+      const host = await harness({
+        signal: controller.signal,
+        async assert(input) {
+          if (input.action !== action) return
+          entered.resolve()
+          await approval.promise
+        },
+      })
+      const pending = host.tool.execute({
+        operation: "outline", filePath: path.join(directory, "missing.json"),
+      }, host.context)
+      await entered.promise
+      const reason = new Error("session interrupted")
+      controller.abort(reason)
+      approval.resolve()
+      await expect(pending).rejects.toBe(reason)
+      expect(host.permissions).toHaveLength(["ast", "external_directory", "read"].indexOf(action) + 1)
+      expect(host.progress).toHaveLength(0)
+    } finally {
+      approval.resolve()
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+
+  test("stops before parsing when progress is cancelled", async () => {
+    const controller = new AbortController()
+    const reason = new Error("session interrupted during progress")
+    const host = await harness({
+      signal: controller.signal,
+      progress: () => controller.abort(reason),
+    })
+    await expect(host.tool.execute({
+      operation: "outline", filePath: "fixtures/missing.json",
+    }, host.context)).rejects.toBe(reason)
   })
 })
